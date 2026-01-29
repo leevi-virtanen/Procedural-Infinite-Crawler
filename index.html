@@ -36,7 +36,7 @@
             pointer-events: none;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 15px;
         }
 
         .hud-panel {
@@ -48,10 +48,17 @@
             box-shadow: 0 0 15px rgba(214, 51, 132, 0.3), inset 0 0 20px rgba(0, 0, 0, 0.5);
             backdrop-filter: blur(5px);
             -webkit-backdrop-filter: blur(5px);
-            min-width: 120px;
+            min-width: 140px;
             transform: skewX(-5deg);
             transition: transform 0.1s;
         }
+
+        /* Cyan theme for Energy/Data */
+        .hud-panel.cyan {
+            border-color: #00f3ff;
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.3), inset 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+        .hud-panel.cyan .hud-label { color: #00f3ff; text-shadow: 0 0 5px rgba(0, 243, 255, 0.5); }
 
         .hud-label {
             font-family: 'Courier New', monospace;
@@ -59,7 +66,7 @@
             text-transform: uppercase;
             letter-spacing: 2px;
             color: #ff80bf;
-            margin-bottom: 2px;
+            margin-bottom: 5px;
             text-shadow: 0 0 5px rgba(214, 51, 132, 0.5);
         }
 
@@ -72,21 +79,119 @@
             line-height: 1;
         }
 
+        /* Energy Bar */
+        .energy-bar-container {
+            width: 100%;
+            height: 6px;
+            background: #222;
+            margin-top: 5px;
+            position: relative;
+            overflow: hidden;
+        }
+        .energy-fill {
+            height: 100%;
+            background: #00f3ff;
+            width: 100%;
+            box-shadow: 0 0 10px #00f3ff;
+            transition: width 0.2s;
+        }
+
         @keyframes pulse-neon {
-            0% { box-shadow: 0 0 15px rgba(214, 51, 132, 0.3); transform: skewX(-5deg) scale(1); }
-            50% { box-shadow: 0 0 40px rgba(214, 51, 132, 1); transform: skewX(-5deg) scale(1.1); }
-            100% { box-shadow: 0 0 15px rgba(214, 51, 132, 0.3); transform: skewX(-5deg) scale(1); }
+            0% { transform: skewX(-5deg) scale(1); }
+            50% { transform: skewX(-5deg) scale(1.05); }
+            100% { transform: skewX(-5deg) scale(1); }
         }
 
         .stat-bump {
-            animation: pulse-neon 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            animation: pulse-neon 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
+
+        /* Gacha UI */
+        #gacha-btn {
+            position: fixed; top: 20px; right: 20px;
+            z-index: 150; pointer-events: auto;
+            background: #d63384; color: #fff;
+            border: none; padding: 10px 20px;
+            font-family: 'Courier New', monospace; font-weight: bold;
+            cursor: pointer; clip-path: polygon(10% 0, 100% 0, 90% 100%, 0% 100%);
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 0 15px rgba(214, 51, 132, 0.5);
+        }
+
+        #gacha-btn:disabled { 
+            background: #444; color: #888; cursor: not-allowed; 
+            box-shadow: none;
+        }
+        
+        #gacha-btn:active { transform: scale(0.95); }
+
+        #gacha-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95);
+            display: none; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 300; pointer-events: auto;
+            backdrop-filter: blur(10px);
+        }
+
+        .pull-anim {
+            width: 200px; height: 200px;
+            border: 5px solid #fff; border-radius: 50%;
+            animation: rotate 1s infinite linear;
+            box-shadow: 0 0 50px #00f3ff;
+            margin-bottom: 30px;
+            transition: box-shadow 0.3s;
+        }
+
+        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        .reward-text { font-family: 'Courier New', monospace; font-size: 24px; margin-top: 10px; font-weight: bold; text-align: center; color: #fff; line-height: 1.5; }
 
         #ui-layer {
             position: absolute;
             bottom: 30px;
             right: 30px;
             pointer-events: none;
+        }
+
+        #game-over-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            pointer-events: auto;
+            backdrop-filter: blur(8px);
+            opacity: 0;
+            transition: opacity 0.5s;
+            pointer-events: none;
+        }
+        
+        #game-over-screen.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .go-title {
+            font-family: 'Courier New', monospace;
+            font-size: 40px;
+            color: #ff3333;
+            text-shadow: 0 0 20px #ff0000;
+            margin-bottom: 20px;
+            font-weight: bold;
+            letter-spacing: 5px;
+        }
+
+        .go-score {
+            font-family: sans-serif;
+            color: #fff;
+            font-size: 18px;
+            margin-bottom: 40px;
+            opacity: 0.8;
         }
 
         .btn {
@@ -116,21 +221,50 @@
 <body>
 
     <div id="hud-layer">
+        <!-- Room Counter -->
         <div class="hud-panel" id="rooms-panel">
-            <div class="hud-label">Rooms Unlocked</div>
+            <div class="hud-label">Sectors Found</div>
             <div class="hud-value" id="room-counter">0</div>
         </div>
+        
+        <!-- Energy / Score -->
+        <div class="hud-panel cyan" id="energy-panel">
+            <div class="hud-label">System Integrity</div>
+            <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+                <div class="hud-value" id="energy-val" style="font-size: 20px;">100%</div>
+                <div style="font-size: 12px; color:#aaa; margin-bottom:3px;">DATA: <span id="data-score" style="color:white; font-weight:bold;">0</span></div>
+            </div>
+            <div class="energy-bar-container">
+                <div class="energy-fill" id="energy-fill"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gacha Button -->
+    <button id="gacha-btn" onclick="openGacha()" disabled>DECODE CORE (10 DATA)</button>
+
+    <!-- Gacha Overlay -->
+    <div id="gacha-overlay" onclick="closeGacha()">
+        <div id="pull-visual" class="pull-anim"></div>
+        <div id="pull-result" class="reward-text">DECODING...</div>
+        <div style="margin-top: 20px; color: #888; font-size: 12px;">TAP TO RETURN</div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
 
-    <div id="ui-layer">
-        <button class="btn" onclick="resetGame()">System Reboot</button>
+    <div id="game-over-screen">
+        <div class="go-title">SYSTEM FAILURE</div>
+        <div class="go-score">Energy Depleted. Data lost.</div>
+        <button class="btn" onclick="resetGame()">Reboot System</button>
     </div>
 
     <script>
         // --- CONFIGURATION ---
         const CELL_SIZE = 60; 
+        const ENERGY_COST_MOVE = 1;
+        const ENERGY_GAIN_ITEM = 15;
+        const MAX_ENERGY = 100;
+        const GACHA_COST = 10;
         
         // --- TEMPLATES ---
         const TEMPLATES = [
@@ -145,49 +279,160 @@
         ];
         const FALLBACK_TEMPLATE = { name: "1x1", shape: [[1]] };
 
+        // --- LOOT TABLE ---
+        const LOOT_TABLE = [
+            { name: "Default Red", color: "#e74c3c", rarity: "Common" },
+            { name: "Neon Cyan", color: "#00f3ff", rarity: "Common" },
+            { name: "Plasma Pink", color: "#ff00ff", rarity: "Rare" },
+            { name: "Acid Green", color: "#39ff14", rarity: "Rare" },
+            { name: "Solar Orange", color: "#ff9900", rarity: "Rare" },
+            { name: "Deep Violet", color: "#9933ff", rarity: "Rare" },
+            { name: "Gold Void", color: "#ffd700", rarity: "Legendary" },
+            { name: "Pure White", color: "#ffffff", rarity: "Legendary" }
+        ];
+
+        // --- AUDIO SYSTEM ---
+        const SoundManager = {
+            ctx: null,
+            init: function() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContext) this.ctx = new AudioContext();
+                }
+            },
+            play: function(type) {
+                if (!this.ctx) this.init();
+                if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+                if (!this.ctx) return;
+
+                const t = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                if (type === 'move') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(600, t);
+                    osc.frequency.exponentialRampToValueAtTime(300, t + 0.1);
+                    gain.gain.setValueAtTime(0.05, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+                    osc.start(t);
+                    osc.stop(t + 0.1);
+                } 
+                else if (type === 'bump') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(100, t);
+                    osc.frequency.exponentialRampToValueAtTime(50, t + 0.15);
+                    gain.gain.setValueAtTime(0.1, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+                    osc.start(t);
+                    osc.stop(t + 0.15);
+                }
+                else if (type === 'collect') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(1200, t);
+                    osc.frequency.exponentialRampToValueAtTime(1800, t + 0.1);
+                    gain.gain.setValueAtTime(0.05, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+                    osc.start(t);
+                    osc.stop(t + 0.2);
+                }
+                else if (type === 'die') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(400, t);
+                    osc.frequency.exponentialRampToValueAtTime(50, t + 1.0);
+                    gain.gain.setValueAtTime(0.2, t);
+                    gain.gain.linearRampToValueAtTime(0, t + 1.0);
+                    osc.start(t);
+                    osc.stop(t + 1.0);
+                }
+                else if (type === 'gacha') {
+                    // Computing sound
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(220, t);
+                    osc.frequency.linearRampToValueAtTime(880, t + 0.8);
+                    
+                    // Filter sweep
+                    const filter = this.ctx.createBiquadFilter();
+                    filter.type = 'bandpass';
+                    filter.frequency.setValueAtTime(500, t);
+                    filter.frequency.linearRampToValueAtTime(2000, t + 0.8);
+                    
+                    osc.disconnect();
+                    osc.connect(filter);
+                    filter.connect(gain);
+
+                    gain.gain.setValueAtTime(0.1, t);
+                    gain.gain.linearRampToValueAtTime(0, t + 0.8);
+                    osc.start(t);
+                    osc.stop(t + 0.8);
+                }
+            }
+        };
+
         // --- STATE ---
         let grid = new Map();
         let roomIds = new Map();
+        let items = new Map(); 
         let realizedCells = new Set(); 
+        
+        // Game Logic State
+        let energy = 100;
+        let dataScore = 0;
+        let isGameOver = false;
+        
+        // Gacha State
+        let activeColor = "#e74c3c";
+        let unlockedSkins = new Set(["Default Red"]);
         
         // Animation State
         let cellSpawnTime = new Map(); 
         let particles = []; 
         let visualPlayer = { x: 0, y: 0 }; 
-        
         let roomIdCounter = 0;
         let player = { x: 0, y: 0 }; 
         let camera = { x: 0, y: 0 }; 
         
         // DOM Elements
-        let canvas, ctx, hudCounter, hudPanel;
+        let canvas, ctx;
+        let ui = {
+            rooms: document.getElementById('room-counter'),
+            roomPanel: document.getElementById('rooms-panel'),
+            energyVal: document.getElementById('energy-val'),
+            energyFill: document.getElementById('energy-fill'),
+            energyPanel: document.getElementById('energy-panel'),
+            dataScore: document.getElementById('data-score'),
+            gameOver: document.getElementById('game-over-screen'),
+            gachaBtn: document.getElementById('gacha-btn'),
+            gachaOverlay: document.getElementById('gacha-overlay'),
+            pullResult: document.getElementById('pull-result'),
+            pullVisual: document.getElementById('pull-visual')
+        };
 
         // --- GAME LOOP ---
         function gameLoop(timestamp) {
-            update(timestamp);
+            if (!isGameOver) update(timestamp);
             draw(timestamp);
             requestAnimationFrame(gameLoop);
         }
 
         function update(timestamp) {
-            if (!player || !visualPlayer) return;
-
-            // 1. Smooth Player Movement (Lerp)
+            // Lerp Player
             const targetPx = player.x * CELL_SIZE;
             const targetPy = player.y * CELL_SIZE;
-            
             const lerpSpeed = 0.25; 
             visualPlayer.x += (targetPx - visualPlayer.x) * lerpSpeed;
             visualPlayer.y += (targetPy - visualPlayer.y) * lerpSpeed;
 
-            // 2. Smooth Camera Follow
+            // Lerp Camera
             const targetCamX = visualPlayer.x - canvas.width / 2 + CELL_SIZE / 2;
             const targetCamY = visualPlayer.y - canvas.height / 2 + CELL_SIZE / 2;
-            
             camera.x += (targetCamX - camera.x) * 0.1;
             camera.y += (targetCamY - camera.y) * 0.1;
 
-            // 3. Update Particles
+            // Particles
             for (let i = particles.length - 1; i >= 0; i--) {
                 let p = particles[i];
                 p.life -= 0.05;
@@ -202,9 +447,6 @@
         window.onload = function() {
             canvas = document.getElementById('gameCanvas');
             ctx = canvas.getContext('2d');
-            hudCounter = document.getElementById('room-counter');
-            hudPanel = document.getElementById('rooms-panel');
-
             window.addEventListener('resize', resizeCanvas);
             resizeCanvas();
             resetGame();
@@ -220,47 +462,113 @@
             grid.clear();
             roomIds.clear();
             realizedCells.clear();
+            items.clear();
             cellSpawnTime.clear();
             particles = [];
+            
             roomIdCounter = 0;
+            energy = 100;
+            dataScore = 0; // Reset score on death, but skins persist (unlockedSkins not cleared)
+            isGameOver = false;
+            
             player = { x: 0, y: 0 };
             visualPlayer = { x: 0, y: 0 }; 
             
-            updateHUD(0);
+            ui.gameOver.classList.remove('visible');
+            updateUI();
+            
             expandRoomAt(0, 0);
             
             if (canvas) {
                 camera.x = player.x * CELL_SIZE - canvas.width / 2 + CELL_SIZE / 2;
                 camera.y = player.y * CELL_SIZE - canvas.height / 2 + CELL_SIZE / 2;
             }
+            SoundManager.init();
         }
 
-        function updateHUD(count) {
-            if (!hudCounter || !hudPanel) return;
-            hudCounter.innerText = count;
-            hudPanel.classList.remove('stat-bump');
-            void hudPanel.offsetWidth; 
-            hudPanel.classList.add('stat-bump');
+        function updateUI() {
+            if (!ui.rooms) return;
+            ui.rooms.innerText = roomIdCounter;
+            ui.dataScore.innerText = dataScore;
+            
+            ui.energyVal.innerText = Math.ceil(energy) + "%";
+            ui.energyFill.style.width = Math.max(0, energy) + "%";
+            
+            // Energy bar color
+            if (energy < 20) {
+                ui.energyFill.style.background = "#ff3333";
+                ui.energyFill.style.boxShadow = "0 0 10px #ff3333";
+            } else {
+                ui.energyFill.style.background = "#00f3ff";
+                ui.energyFill.style.boxShadow = "0 0 10px #00f3ff";
+            }
+
+            // Enable/Disable Gacha
+            if (dataScore >= GACHA_COST) {
+                ui.gachaBtn.disabled = false;
+            } else {
+                ui.gachaBtn.disabled = true;
+            }
+        }
+
+        function triggerGameOver() {
+            isGameOver = true;
+            SoundManager.play('die');
+            ui.gameOver.classList.add('visible');
+        }
+
+        // --- GACHA LOGIC ---
+        function openGacha() {
+            if (dataScore < GACHA_COST) return;
+            
+            // Spend Data
+            dataScore -= GACHA_COST;
+            updateUI();
+            SoundManager.play('gacha');
+
+            // Show UI
+            ui.gachaOverlay.style.display = 'flex';
+            ui.pullResult.innerText = "DECODING CORE...";
+            ui.pullResult.style.color = "#fff";
+            ui.pullVisual.style.boxShadow = "0 0 50px #fff";
+            ui.pullVisual.style.borderColor = "#fff";
+
+            // Delay for suspense
+            setTimeout(() => {
+                const roll = Math.random();
+                let item;
+                
+                // Drop Rates: 5% Legendary, 20% Rare, 75% Common
+                if(roll > 0.95) item = LOOT_TABLE.filter(i => i.rarity === "Legendary")[Math.floor(Math.random() * 2)]; 
+                else if(roll > 0.75) item = LOOT_TABLE.filter(i => i.rarity === "Rare")[Math.floor(Math.random() * 4)];
+                else item = LOOT_TABLE.filter(i => i.rarity === "Common")[Math.floor(Math.random() * 2)];
+
+                // Unlock
+                activeColor = item.color;
+                unlockedSkins.add(item.name);
+                
+                // Show Result
+                ui.pullResult.innerHTML = `<span style="color:${item.color}">${item.rarity.toUpperCase()}:<br>${item.name}</span><br><span style="font-size:14px; color:#aaa">CORE EQUIPPED</span>`;
+                ui.pullVisual.style.boxShadow = `0 0 80px ${item.color}`;
+                ui.pullVisual.style.borderColor = item.color;
+                
+                // Play success sound
+                SoundManager.play('collect');
+                
+            }, 1000);
+        }
+
+        function closeGacha() {
+            // Only close if text isn't "DECODING..."
+            if (ui.pullResult.innerText !== "DECODING CORE...") {
+                ui.gachaOverlay.style.display = 'none';
+            }
         }
 
         // --- CORE LOGIC ---
         function getCell(x, y) { return grid.get(`${x},${y}`); }
         function setCell(x, y, val) { grid.set(`${x},${y}`, val); }
         function getRoomId(x, y) { return roomIds.get(`${x},${y}`); }
-
-        function canMoveTo(tx, ty, dx, dy) {
-            if (!grid.has(`${tx},${ty}`)) return false;
-            const cVal = getCell(player.x, player.y);
-            const cRoom = getRoomId(player.x, player.y);
-            const tRoom = getRoomId(tx, ty);
-
-            if (cRoom === tRoom) return true;
-            if (dx === 1) return cVal === 2;
-            if (dx === -1) return cVal === 4;
-            if (dy === 1) return cVal === 3;
-            if (dy === -1) return cVal === 5;
-            return false;
-        }
 
         function spawnParticles(x, y, color) {
             for(let i=0; i<8; i++) {
@@ -276,13 +584,19 @@
             }
         }
 
+        // --- GENERATION ---
         function expandRoomAt(targetX, targetY) {
             if (realizedCells.has(`${targetX},${targetY}`)) return;
 
             const shuffledTemplates = [...TEMPLATES].sort(() => Math.random() - 0.5);
             let placed = false;
             roomIdCounter++;
-            updateHUD(roomIdCounter);
+            
+            // UI Bump
+            ui.roomPanel.classList.remove('stat-bump');
+            void ui.roomPanel.offsetWidth;
+            ui.roomPanel.classList.add('stat-bump');
+            updateUI();
             
             const newRoomId = roomIdCounter;
 
@@ -318,6 +632,7 @@
                 if (canPlace(shape, startX, startY)) {
                     place(shape, startX, startY, newRoomId);
                     addExitsToNewRoom(shape, startX, startY);
+                    spawnItemsInRoom(shape, startX, startY);
                     return true;
                 }
             }
@@ -351,8 +666,24 @@
                         if (!current) setCell(wx, wy, 1);
                         realizedCells.add(`${wx},${wy}`);
                         roomIds.set(`${wx},${wy}`, id);
-                        
                         cellSpawnTime.set(`${wx},${wy}`, performance.now());
+                    }
+                }
+            }
+        }
+
+        function spawnItemsInRoom(shape, startX, startY) {
+            const h = shape.length;
+            const w = shape[0].length;
+            for(let r=0; r<h; r++) {
+                for(let c=0; c<w; c++) {
+                    if (shape[r][c] === 1) {
+                        const wx = startX + c;
+                        const wy = startY + r;
+                        if (wx === 0 && wy === 0) continue;
+                        if (Math.random() < 0.15) {
+                            items.set(`${wx},${wy}`, 1);
+                        }
                     }
                 }
             }
@@ -376,54 +707,78 @@
                 }
             }
 
-            // Reduced door density: Mostly 1 exit, sometimes 2.
             const numExits = Math.random() > 0.7 ? 2 : 1;
             candidates.sort(() => Math.random() - 0.5);
 
             let placedCount = 0;
             for (const cand of candidates) {
-                // IMPORTANT FIX: Stop loop if we reached the desired number of exits
                 if (placedCount >= numExits) break;
-
                 if (getCell(cand.x, cand.y) !== 1) continue;
 
                 if (cand.dir === 'Right' && !getCell(cand.x+1, cand.y)) {
-                    setCell(cand.x, cand.y, 2);   
-                    setCell(cand.x+1, cand.y, 4); 
-                    placedCount++;
-                }
-                else if (cand.dir === 'Left' && !getCell(cand.x-1, cand.y)) {
-                    setCell(cand.x, cand.y, 4);
-                    setCell(cand.x-1, cand.y, 2);
-                    placedCount++;
-                }
-                else if (cand.dir === 'Down' && !getCell(cand.x, cand.y+1)) {
-                    setCell(cand.x, cand.y, 3);
-                    setCell(cand.x, cand.y+1, 5);
-                    placedCount++;
-                }
-                else if (cand.dir === 'Up' && !getCell(cand.x, cand.y-1)) {
-                    setCell(cand.x, cand.y, 5);
-                    setCell(cand.x, cand.y-1, 3);
-                    placedCount++;
+                    setCell(cand.x, cand.y, 2); setCell(cand.x+1, cand.y, 4); placedCount++;
+                } else if (cand.dir === 'Left' && !getCell(cand.x-1, cand.y)) {
+                    setCell(cand.x, cand.y, 4); setCell(cand.x-1, cand.y, 2); placedCount++;
+                } else if (cand.dir === 'Down' && !getCell(cand.x, cand.y+1)) {
+                    setCell(cand.x, cand.y, 3); setCell(cand.x, cand.y+1, 5); placedCount++;
+                } else if (cand.dir === 'Up' && !getCell(cand.x, cand.y-1)) {
+                    setCell(cand.x, cand.y, 5); setCell(cand.x, cand.y-1, 3); placedCount++;
                 }
             }
         }
 
         function attemptMove(dx, dy) {
+            if (isGameOver) return;
+
             const targetX = player.x + dx;
             const targetY = player.y + dy;
+            
+            let canGo = false;
+            const cVal = getCell(player.x, player.y);
+            const cRoom = getRoomId(player.x, player.y);
+            const tRoom = getRoomId(targetX, targetY);
 
-            if (canMoveTo(targetX, targetY, dx, dy)) {
-                spawnParticles(player.x, player.y, "#e74c3c");
-                
+            if (grid.has(`${targetX},${targetY}`)) {
+                if (cRoom === tRoom) canGo = true; 
+                else {
+                    if (dx === 1 && cVal === 2) canGo = true;
+                    if (dx === -1 && cVal === 4) canGo = true;
+                    if (dy === 1 && cVal === 3) canGo = true;
+                    if (dy === -1 && cVal === 5) canGo = true;
+                }
+            }
+
+            if (canGo) {
                 player.x = targetX;
                 player.y = targetY;
-                
+                SoundManager.play('move');
+                spawnParticles(player.x, player.y, activeColor); // Use Active Skin Color
+
+                if (items.has(`${player.x},${player.y}`)) {
+                    items.delete(`${player.x},${player.y}`);
+                    energy = Math.min(MAX_ENERGY, energy + ENERGY_GAIN_ITEM);
+                    dataScore++;
+                    SoundManager.play('collect');
+                    spawnParticles(player.x, player.y, "#00f3ff"); 
+                    ui.energyPanel.classList.remove('stat-bump');
+                    void ui.energyPanel.offsetWidth;
+                    ui.energyPanel.classList.add('stat-bump');
+                } else {
+                    energy -= ENERGY_COST_MOVE;
+                }
+
                 if (!realizedCells.has(`${targetX},${targetY}`)) {
                     expandRoomAt(targetX, targetY);
                 }
+            } else {
+                SoundManager.play('bump');
             }
+
+            if (energy <= 0) {
+                energy = 0;
+                triggerGameOver();
+            }
+            updateUI();
         }
 
         // --- INPUT ---
@@ -434,9 +789,9 @@
             if (e.key === "ArrowUp") attemptMove(0, -1);
         });
 
-        let touchStartX = 0;
-        let touchStartY = 0;
+        let touchStartX = 0, touchStartY = 0;
         window.addEventListener('touchstart', (e) => {
+            SoundManager.init(); 
             touchStartX = e.changedTouches[0].clientX;
             touchStartY = e.changedTouches[0].clientY;
         }, {passive: false});
@@ -452,41 +807,29 @@
             const dy = endY - touchStartY;
             const absDx = Math.abs(dx);
             const absDy = Math.abs(dy);
-            const swipeThreshold = 30; 
-
-            if (Math.max(absDx, absDy) > swipeThreshold) {
-                if (absDx > absDy) {
-                    attemptMove(dx > 0 ? 1 : -1, 0);
-                } else {
-                    attemptMove(0, dy > 0 ? 1 : -1);
-                }
-                return;
-            }
-
-            const centerX = window.innerWidth / 2;
-            const centerY = window.innerHeight / 2;
-            const tapDx = endX - centerX;
-            const tapDy = endY - centerY;
             
-            if (Math.abs(tapDx) < 30 && Math.abs(tapDy) < 30) return;
-
-            if (Math.abs(tapDx) > Math.abs(tapDy)) {
-                attemptMove(tapDx > 0 ? 1 : -1, 0);
+            if (Math.max(absDx, absDy) > 30) {
+                if (absDx > absDy) attemptMove(dx > 0 ? 1 : -1, 0);
+                else attemptMove(0, dy > 0 ? 1 : -1);
             } else {
-                attemptMove(0, tapDy > 0 ? 1 : -1);
+                const centerX = window.innerWidth / 2;
+                const centerY = window.innerHeight / 2;
+                const tapDx = endX - centerX;
+                const tapDy = endY - centerY;
+                if (Math.abs(tapDx) > 30 || Math.abs(tapDy) > 30) {
+                    if (Math.abs(tapDx) > Math.abs(tapDy)) attemptMove(tapDx > 0 ? 1 : -1, 0);
+                    else attemptMove(0, tapDy > 0 ? 1 : -1);
+                }
             }
         }
 
         // --- HELPER FOR SCALE CALC ---
         function getCellScale(c, r, timestamp) {
             if (!realizedCells.has(`${c},${r}`)) return { scale: 1, alpha: 0 };
-            
             const spawnTime = cellSpawnTime.get(`${c},${r}`) || timestamp;
             const age = Math.max(0, timestamp - spawnTime);
-            
             let scale = 1;
             let alpha = 1;
-            
             if (age < 400) {
                 const t = age / 400;
                 scale = 1 + Math.sin(t * Math.PI) * 0.2; 
@@ -499,11 +842,9 @@
         // --- DRAWING ---
         function draw(timestamp) {
             if (!ctx) return;
-            
             const w = canvas.width;
             const h = canvas.height;
 
-            // Fill BG
             ctx.fillStyle = "#050505";
             ctx.fillRect(0, 0, w, h);
 
@@ -515,7 +856,7 @@
             ctx.save();
             ctx.translate(-Math.floor(camera.x), -Math.floor(camera.y));
 
-            // 1. Draw Floor Tiles
+            // 1. Draw Floor
             for(let c = startCol; c <= endCol; c++) {
                 for(let r = startRow; r <= endRow; r++) {
                     const val = getCell(c, r);
@@ -531,11 +872,21 @@
                         ctx.scale(scale, scale);
                         ctx.translate(-cx, -cy);
 
-                        // Body
+                        // Base Tile
                         ctx.fillStyle = realizedCells.has(`${c},${r}`) ? `rgba(255,255,255,${alpha})` : "#1a1a1a";
                         ctx.fillRect(x, y, CELL_SIZE + 1, CELL_SIZE + 1);
 
-                        // Static Symbol (No Pulse)
+                        // Item
+                        if (items.has(`${c},${r}`)) {
+                            ctx.fillStyle = "#00f3ff";
+                            ctx.shadowBlur = 10;
+                            ctx.shadowColor = "#00f3ff";
+                            const itemY = cy + Math.sin(timestamp * 0.005) * 5;
+                            ctx.fillRect(cx - 8, itemY - 8, 16, 16);
+                            ctx.shadowBlur = 0;
+                        }
+
+                        // Arrows
                         let symbol = "";
                         if (val === 2) symbol = "→";
                         if (val === 3) symbol = "↓";
@@ -549,85 +900,56 @@
                             ctx.font = "bold 30px Arial";
                             ctx.fillText(symbol, cx, cy);
                         }
-                        
                         ctx.restore();
                     }
                 }
             }
 
-            // 2. Draw Walls (Animated with Rooms)
+            // 2. Draw Walls
             ctx.strokeStyle = "#c0392b"; 
             ctx.lineWidth = 4;
             ctx.lineCap = "round";
-            
             for(let c = startCol; c <= endCol; c++) {
                 for(let r = startRow; r <= endRow; r++) {
                     const val = getCell(c, r);
                     if (!val) continue;
-
                     const myRoom = getRoomId(c, r);
                     const x = c * CELL_SIZE;
                     const y = r * CELL_SIZE;
+                    const cx = x + CELL_SIZE/2, cy = y + CELL_SIZE/2;
 
-                    // Apply the SAME scale transformation as the floor
-                    const { scale } = getCellScale(c, r, timestamp);
-                    const cx = x + CELL_SIZE/2;
-                    const cy = y + CELL_SIZE/2;
+                    let scale = 1;
+                    if (realizedCells.has(`${c},${r}`)) {
+                        const spawnTime = cellSpawnTime.get(`${c},${r}`) || timestamp;
+                        const age = Math.max(0, timestamp - spawnTime);
+                        if (age < 400) scale = 1 + Math.sin((age/400) * Math.PI) * 0.2;
+                        if (age >= 400) scale = 1;
+                    }
 
                     ctx.save();
                     ctx.translate(cx, cy);
                     ctx.scale(scale, scale);
                     ctx.translate(-cx, -cy);
-                    
-                    ctx.beginPath(); // Start a new path for this cell's walls
+                    ctx.beginPath();
 
-                    // Right Neighbor Wall
                     const rightRoom = getRoomId(c+1, r);
-                    if (myRoom !== undefined) {
-                        if (rightRoom !== myRoom) {
-                            const rightVal = getCell(c+1, r);
-                            const hasDoor = (val === 2) || (rightVal === 4);
-                            if (!hasDoor) {
-                                ctx.moveTo(x + CELL_SIZE, y);
-                                ctx.lineTo(x + CELL_SIZE, y + CELL_SIZE);
-                            }
-                        }
+                    if (myRoom !== undefined && rightRoom !== myRoom) {
+                        const rightVal = getCell(c+1, r);
+                        if (!(val === 2 || rightVal === 4)) { ctx.moveTo(x+CELL_SIZE, y); ctx.lineTo(x+CELL_SIZE, y+CELL_SIZE); }
                     }
-
-                    // Bottom Neighbor Wall
                     const downRoom = getRoomId(c, r+1);
-                    if (myRoom !== undefined) {
-                        if (downRoom !== myRoom) {
-                            const downVal = getCell(c, r+1);
-                            const hasDoor = (val === 3) || (downVal === 5);
-                            if (!hasDoor) {
-                                ctx.moveTo(x, y + CELL_SIZE);
-                                ctx.lineTo(x + CELL_SIZE, y + CELL_SIZE);
-                            }
-                        }
+                    if (myRoom !== undefined && downRoom !== myRoom) {
+                        const downVal = getCell(c, r+1);
+                        if (!(val === 3 || downVal === 5)) { ctx.moveTo(x, y+CELL_SIZE); ctx.lineTo(x+CELL_SIZE, y+CELL_SIZE); }
                     }
-                    
-                    // Left Edge Wall (Void)
-                    if (!grid.has(`${c-1},${r}`) && myRoom !== undefined) {
-                         if (val !== 4) {
-                             ctx.moveTo(x, y);
-                             ctx.lineTo(x, y + CELL_SIZE);
-                         }
-                    }
-                     // Top Edge Wall (Void)
-                     if (!grid.has(`${c},${r-1}`) && myRoom !== undefined) {
-                         if (val !== 5) {
-                             ctx.moveTo(x, y);
-                             ctx.lineTo(x + CELL_SIZE, y);
-                         }
-                    }
-                    
+                    if (!grid.has(`${c-1},${r}`) && myRoom !== undefined && val !== 4) { ctx.moveTo(x, y); ctx.lineTo(x, y+CELL_SIZE); }
+                    if (!grid.has(`${c},${r-1}`) && myRoom !== undefined && val !== 5) { ctx.moveTo(x, y); ctx.lineTo(x+CELL_SIZE, y); }
                     ctx.stroke();
                     ctx.restore();
                 }
             }
 
-            // 3. Draw Particles
+            // 3. Particles
             for(let p of particles) {
                 ctx.fillStyle = p.color;
                 ctx.globalAlpha = p.life;
@@ -635,28 +957,16 @@
             }
             ctx.globalAlpha = 1.0;
 
-            // 4. Draw Player
-            ctx.fillStyle = "#e74c3c";
+            // 4. Player (Use activeColor from Gacha)
+            ctx.fillStyle = activeColor;
             const pScale = 1 + Math.sin(timestamp * 0.01) * 0.05;
             const pSize = (CELL_SIZE - 30) * pScale;
             const pOffset = (CELL_SIZE - pSize) / 2;
             
-            ctx.fillRect(
-                visualPlayer.x + pOffset, 
-                visualPlayer.y + pOffset, 
-                pSize, 
-                pSize
-            );
-            
-            // Player inner glow
+            ctx.fillRect(visualPlayer.x + pOffset, visualPlayer.y + pOffset, pSize, pSize);
             ctx.shadowBlur = 15;
-            ctx.shadowColor = "#e74c3c";
-            ctx.fillRect(
-                visualPlayer.x + pOffset + 5, 
-                visualPlayer.y + pOffset + 5, 
-                pSize - 10, 
-                pSize - 10
-            );
+            ctx.shadowColor = activeColor;
+            ctx.fillRect(visualPlayer.x + pOffset + 5, visualPlayer.y + pOffset + 5, pSize - 10, pSize - 10);
             ctx.shadowBlur = 0;
 
             ctx.restore();

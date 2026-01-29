@@ -7,32 +7,16 @@
     <!-- SEO & Open Graph Tags -->
     <title>Procedural Dungeon Crawler | Infinite Map Generator</title>
     <meta name="description" content="Explore an infinite, procedurally generated dungeon. Navigate room by room, solve layout puzzles, and survive the endless void. Mobile-friendly web game.">
-    <meta name="keywords" content="procedural generation, dungeon crawler, infinite map, bsp dungeon, web game, javascript game">
-    <meta name="author" content="Procedural Gen Bot">
     
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://example.com/dungeon-crawler">
-    <meta property="og:title" content="Procedural Dungeon Crawler">
-    <meta property="og:description" content="How deep can you go? Explore an infinite grid of procedurally connected rooms.">
-    <meta property="og:image" content="https://placehold.co/1200x630/1a1a1a/d63384?text=Infinite+Dungeon">
-
-    <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="https://example.com/dungeon-crawler">
-    <meta property="twitter:title" content="Procedural Dungeon Crawler">
-    <meta property="twitter:description" content="Explore an infinite, procedurally generated dungeon.">
-    <meta property="twitter:image" content="https://placehold.co/1200x630/1a1a1a/d63384?text=Infinite+Dungeon">
-
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #000;
+            background-color: #050505;
             color: #eee;
             margin: 0;
             padding: 0;
-            overflow: hidden; /* Prevent scrollbars */
-            touch-action: none; /* Prevent browser gestures like pull-to-refresh */
+            overflow: hidden; 
+            touch-action: none; 
             width: 100vw;
             height: 100vh;
         }
@@ -43,7 +27,7 @@
             height: 100%;
         }
 
-        /* Crazy HUD Styles */
+        /* HUD Styles */
         #hud-layer {
             position: fixed;
             top: 20px;
@@ -66,6 +50,7 @@
             -webkit-backdrop-filter: blur(5px);
             min-width: 120px;
             transform: skewX(-5deg);
+            transition: transform 0.1s;
         }
 
         .hud-label {
@@ -87,15 +72,14 @@
             line-height: 1;
         }
 
-        /* Animated Pulse for Stat Update */
         @keyframes pulse-neon {
             0% { box-shadow: 0 0 15px rgba(214, 51, 132, 0.3); transform: skewX(-5deg) scale(1); }
-            50% { box-shadow: 0 0 30px rgba(214, 51, 132, 0.8); transform: skewX(-5deg) scale(1.05); }
+            50% { box-shadow: 0 0 40px rgba(214, 51, 132, 1); transform: skewX(-5deg) scale(1.1); }
             100% { box-shadow: 0 0 15px rgba(214, 51, 132, 0.3); transform: skewX(-5deg) scale(1); }
         }
 
         .stat-bump {
-            animation: pulse-neon 0.2s ease-out;
+            animation: pulse-neon 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
         #ui-layer {
@@ -127,22 +111,15 @@
             color: #000;
             box-shadow: 0 0 20px rgba(214, 51, 132, 0.6);
         }
-        
-        .btn:active {
-            transform: scale(0.95);
-        }
     </style>
 </head>
 <body>
 
-    <!-- HUD Layer -->
     <div id="hud-layer">
         <div class="hud-panel" id="rooms-panel">
             <div class="hud-label">Rooms Unlocked</div>
             <div class="hud-value" id="room-counter">0</div>
         </div>
-        <!-- Placeholder for future stats -->
-        <!-- <div class="hud-panel"><div class="hud-label">Depth</div><div class="hud-value">1</div></div> -->
     </div>
 
     <canvas id="gameCanvas"></canvas>
@@ -166,58 +143,103 @@
             { name: "L Shape", shape: [[1,0,0],[1,0,0], [1,1,0]] },
             { name: "Cross", shape: [[0,1,0],[1,1,1],[0,1,0]] }
         ];
-
-        // Fallback only used when nothing else fits
         const FALLBACK_TEMPLATE = { name: "1x1", shape: [[1]] };
 
         // --- STATE ---
         let grid = new Map();
         let roomIds = new Map();
         let realizedCells = new Set(); 
+        
+        // Animation State
+        let cellSpawnTime = new Map(); 
+        let particles = []; 
+        let visualPlayer = { x: 0, y: 0 }; 
+        
         let roomIdCounter = 0;
-        let player = { x: 0, y: 0 };
-        let camera = { x: 0, y: 0 };
+        let player = { x: 0, y: 0 }; 
+        let camera = { x: 0, y: 0 }; 
+        
+        // DOM Elements
+        let canvas, ctx, hudCounter, hudPanel;
 
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const hudCounter = document.getElementById('room-counter');
-        const hudPanel = document.getElementById('rooms-panel');
+        // --- GAME LOOP ---
+        function gameLoop(timestamp) {
+            update(timestamp);
+            draw(timestamp);
+            requestAnimationFrame(gameLoop);
+        }
 
-        // --- RESPONSIVE HANDLING ---
+        function update(timestamp) {
+            if (!player || !visualPlayer) return;
+
+            // 1. Smooth Player Movement (Lerp)
+            const targetPx = player.x * CELL_SIZE;
+            const targetPy = player.y * CELL_SIZE;
+            
+            const lerpSpeed = 0.25; 
+            visualPlayer.x += (targetPx - visualPlayer.x) * lerpSpeed;
+            visualPlayer.y += (targetPy - visualPlayer.y) * lerpSpeed;
+
+            // 2. Smooth Camera Follow
+            const targetCamX = visualPlayer.x - canvas.width / 2 + CELL_SIZE / 2;
+            const targetCamY = visualPlayer.y - canvas.height / 2 + CELL_SIZE / 2;
+            
+            camera.x += (targetCamX - camera.x) * 0.1;
+            camera.y += (targetCamY - camera.y) * 0.1;
+
+            // 3. Update Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.life -= 0.05;
+                p.x += p.vx;
+                p.y += p.vy;
+                p.size *= 0.95;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+        }
+
+        // --- INITIALIZATION ---
+        window.onload = function() {
+            canvas = document.getElementById('gameCanvas');
+            ctx = canvas.getContext('2d');
+            hudCounter = document.getElementById('room-counter');
+            hudPanel = document.getElementById('rooms-panel');
+
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
+            resetGame();
+            requestAnimationFrame(gameLoop);
+        };
+
         function resizeCanvas() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            updateCamera();
-            draw();
         }
-        window.addEventListener('resize', resizeCanvas);
 
-        // --- INITIALIZATION ---
         function resetGame() {
             grid.clear();
             roomIds.clear();
             realizedCells.clear();
+            cellSpawnTime.clear();
+            particles = [];
             roomIdCounter = 0;
             player = { x: 0, y: 0 };
+            visualPlayer = { x: 0, y: 0 }; 
             
             updateHUD(0);
             expandRoomAt(0, 0);
             
-            // Ensure canvas size is correct before drawing
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            
-            updateCamera();
-            draw();
+            if (canvas) {
+                camera.x = player.x * CELL_SIZE - canvas.width / 2 + CELL_SIZE / 2;
+                camera.y = player.y * CELL_SIZE - canvas.height / 2 + CELL_SIZE / 2;
+            }
         }
 
-        // --- HUD UPDATE ---
         function updateHUD(count) {
+            if (!hudCounter || !hudPanel) return;
             hudCounter.innerText = count;
-            
-            // Trigger animation
             hudPanel.classList.remove('stat-bump');
-            void hudPanel.offsetWidth; // Trigger reflow
+            void hudPanel.offsetWidth; 
             hudPanel.classList.add('stat-bump');
         }
 
@@ -228,21 +250,30 @@
 
         function canMoveTo(tx, ty, dx, dy) {
             if (!grid.has(`${tx},${ty}`)) return false;
-
             const cVal = getCell(player.x, player.y);
             const cRoom = getRoomId(player.x, player.y);
             const tRoom = getRoomId(tx, ty);
 
-            // Same room movement is free
             if (cRoom === tRoom) return true;
-
-            // Crossing rooms requires specific door alignment
             if (dx === 1) return cVal === 2;
             if (dx === -1) return cVal === 4;
             if (dy === 1) return cVal === 3;
             if (dy === -1) return cVal === 5;
-
             return false;
+        }
+
+        function spawnParticles(x, y, color) {
+            for(let i=0; i<8; i++) {
+                particles.push({
+                    x: x * CELL_SIZE + CELL_SIZE/2,
+                    y: y * CELL_SIZE + CELL_SIZE/2,
+                    vx: (Math.random() - 0.5) * 4,
+                    vy: (Math.random() - 0.5) * 4,
+                    life: 1.0,
+                    size: Math.random() * 6 + 2,
+                    color: color
+                });
+            }
         }
 
         function expandRoomAt(targetX, targetY) {
@@ -251,43 +282,46 @@
             const shuffledTemplates = [...TEMPLATES].sort(() => Math.random() - 0.5);
             let placed = false;
             roomIdCounter++;
-            updateHUD(roomIdCounter); // Update UI
+            updateHUD(roomIdCounter);
             
             const newRoomId = roomIdCounter;
 
-            // Try standard templates
             for (const tmpl of shuffledTemplates) {
-                const shape = tmpl.shape;
-                const h = shape.length;
-                const w = shape[0].length;
-                const anchorPoints = [];
-                
-                for(let r=0; r<h; r++) {
-                    for(let c=0; c<w; c++) {
-                        if (shape[r][c] === 1) anchorPoints.push({r, c});
-                    }
+                if (tryPlaceTemplate(tmpl, targetX, targetY, newRoomId)) {
+                    placed = true;
+                    break;
                 }
-                anchorPoints.sort(() => Math.random() - 0.5);
-
-                for (const anchor of anchorPoints) {
-                    const startX = targetX - anchor.c;
-                    const startY = targetY - anchor.r;
-
-                    if (canPlace(shape, startX, startY)) {
-                        place(shape, startX, startY, newRoomId);
-                        addExitsToNewRoom(shape, startX, startY);
-                        placed = true;
-                        break;
-                    }
-                }
-                if (placed) break;
             }
 
-            // Strict Fallback: Use 1x1 only if no other template fitted
             if (!placed) {
-                place(FALLBACK_TEMPLATE.shape, targetX, targetY, newRoomId);
-                addExitsToNewRoom(FALLBACK_TEMPLATE.shape, targetX, targetY);
+                tryPlaceTemplate(FALLBACK_TEMPLATE, targetX, targetY, newRoomId);
             }
+        }
+
+        function tryPlaceTemplate(tmpl, targetX, targetY, newRoomId) {
+            const shape = tmpl.shape;
+            const h = shape.length;
+            const w = shape[0].length;
+            const anchorPoints = [];
+            
+            for(let r=0; r<h; r++) {
+                for(let c=0; c<w; c++) {
+                    if (shape[r][c] === 1) anchorPoints.push({r, c});
+                }
+            }
+            anchorPoints.sort(() => Math.random() - 0.5);
+
+            for (const anchor of anchorPoints) {
+                const startX = targetX - anchor.c;
+                const startY = targetY - anchor.r;
+
+                if (canPlace(shape, startX, startY)) {
+                    place(shape, startX, startY, newRoomId);
+                    addExitsToNewRoom(shape, startX, startY);
+                    return true;
+                }
+            }
+            return false;
         }
 
         function canPlace(shape, startX, startY) {
@@ -317,6 +351,8 @@
                         if (!current) setCell(wx, wy, 1);
                         realizedCells.add(`${wx},${wy}`);
                         roomIds.set(`${wx},${wy}`, id);
+                        
+                        cellSpawnTime.set(`${wx},${wy}`, performance.now());
                     }
                 }
             }
@@ -340,12 +376,15 @@
                 }
             }
 
-            const numExits = Math.max(1, Math.floor(Math.random() * 3) + 1);
+            // Reduced door density: Mostly 1 exit, sometimes 2.
+            const numExits = Math.random() > 0.7 ? 2 : 1;
             candidates.sort(() => Math.random() - 0.5);
 
             let placedCount = 0;
             for (const cand of candidates) {
+                // IMPORTANT FIX: Stop loop if we reached the desired number of exits
                 if (placedCount >= numExits) break;
+
                 if (getCell(cand.x, cand.y) !== 1) continue;
 
                 if (cand.dir === 'Right' && !getCell(cand.x+1, cand.y)) {
@@ -371,26 +410,23 @@
             }
         }
 
-        // --- INPUT HANDLING (SWIPE + KEYBOARD + TAP) ---
-
         function attemptMove(dx, dy) {
             const targetX = player.x + dx;
             const targetY = player.y + dy;
 
             if (canMoveTo(targetX, targetY, dx, dy)) {
+                spawnParticles(player.x, player.y, "#e74c3c");
+                
                 player.x = targetX;
                 player.y = targetY;
                 
                 if (!realizedCells.has(`${targetX},${targetY}`)) {
                     expandRoomAt(targetX, targetY);
                 }
-                
-                updateCamera();
-                draw();
             }
         }
 
-        // Keyboard
+        // --- INPUT ---
         window.addEventListener('keydown', (e) => {
             if (e.key === "ArrowRight") attemptMove(1, 0);
             if (e.key === "ArrowLeft") attemptMove(-1, 0);
@@ -398,16 +434,14 @@
             if (e.key === "ArrowUp") attemptMove(0, -1);
         });
 
-        // Touch logic
         let touchStartX = 0;
         let touchStartY = 0;
-
-        canvas.addEventListener('touchstart', (e) => {
+        window.addEventListener('touchstart', (e) => {
             touchStartX = e.changedTouches[0].clientX;
             touchStartY = e.changedTouches[0].clientY;
         }, {passive: false});
 
-        canvas.addEventListener('touchend', (e) => {
+        window.addEventListener('touchend', (e) => {
             const touchEndX = e.changedTouches[0].clientX;
             const touchEndY = e.changedTouches[0].clientY;
             handleInput(touchEndX, touchEndY);
@@ -418,9 +452,8 @@
             const dy = endY - touchStartY;
             const absDx = Math.abs(dx);
             const absDy = Math.abs(dy);
-            const swipeThreshold = 30; // Min pixels to count as swipe
+            const swipeThreshold = 30; 
 
-            // 1. SWIPE DETECTION
             if (Math.max(absDx, absDy) > swipeThreshold) {
                 if (absDx > absDy) {
                     attemptMove(dx > 0 ? 1 : -1, 0);
@@ -430,66 +463,80 @@
                 return;
             }
 
-            // 2. TAP DETECTION
-            // If it's a tap, check position relative to screen center
             const centerX = window.innerWidth / 2;
             const centerY = window.innerHeight / 2;
-            
             const tapDx = endX - centerX;
             const tapDy = endY - centerY;
             
-            // Tiny deadzone in center (20px radius) to prevent misclicks on player
-            if (Math.abs(tapDx) < 20 && Math.abs(tapDy) < 20) return;
+            if (Math.abs(tapDx) < 30 && Math.abs(tapDy) < 30) return;
 
-            // Determine dominant direction relative to center
             if (Math.abs(tapDx) > Math.abs(tapDy)) {
-                // Horizontal Tap
                 attemptMove(tapDx > 0 ? 1 : -1, 0);
             } else {
-                // Vertical Tap
                 attemptMove(0, tapDy > 0 ? 1 : -1);
             }
         }
 
-        function updateCamera() {
-            // Center player on screen
-            camera.x = player.x * CELL_SIZE - canvas.width / 2 + CELL_SIZE / 2;
-            camera.y = player.y * CELL_SIZE - canvas.height / 2 + CELL_SIZE / 2;
+        // --- HELPER FOR SCALE CALC ---
+        function getCellScale(c, r, timestamp) {
+            if (!realizedCells.has(`${c},${r}`)) return { scale: 1, alpha: 0 };
+            
+            const spawnTime = cellSpawnTime.get(`${c},${r}`) || timestamp;
+            const age = Math.max(0, timestamp - spawnTime);
+            
+            let scale = 1;
+            let alpha = 1;
+            
+            if (age < 400) {
+                const t = age / 400;
+                scale = 1 + Math.sin(t * Math.PI) * 0.2; 
+                if (t > 1) scale = 1;
+                alpha = Math.min(1, t * 2);
+            }
+            return { scale, alpha };
         }
 
         // --- DRAWING ---
-        function draw() {
+        function draw(timestamp) {
+            if (!ctx) return;
+            
             const w = canvas.width;
             const h = canvas.height;
 
             // Fill BG
-            ctx.fillStyle = "#111";
+            ctx.fillStyle = "#050505";
             ctx.fillRect(0, 0, w, h);
 
-            // Determine visible grid range based on canvas size
             const startCol = Math.floor(camera.x / CELL_SIZE) - 1;
             const endCol = startCol + (w / CELL_SIZE) + 2;
             const startRow = Math.floor(camera.y / CELL_SIZE) - 1;
             const endRow = startRow + (h / CELL_SIZE) + 2;
 
             ctx.save();
-            ctx.translate(-camera.x, -camera.y);
+            ctx.translate(-Math.floor(camera.x), -Math.floor(camera.y));
 
-            // 1. Draw Cells
+            // 1. Draw Floor Tiles
             for(let c = startCol; c <= endCol; c++) {
                 for(let r = startRow; r <= endRow; r++) {
-                    const x = c * CELL_SIZE;
-                    const y = r * CELL_SIZE;
                     const val = getCell(c, r);
-                    
                     if (val) {
-                        ctx.fillStyle = realizedCells.has(`${c},${r}`) ? "#fff" : "#222";
-                        // We use CELL_SIZE + 0.5 to slightly overlap and prevent hairline gaps (gray lines)
-                        ctx.fillRect(x, y, CELL_SIZE + 0.5, CELL_SIZE + 0.5);
-
-                        // Symbols
-                        let symbol = "";
+                        const { scale, alpha } = getCellScale(c, r, timestamp);
+                        const x = c * CELL_SIZE;
+                        const y = r * CELL_SIZE;
+                        const cx = x + CELL_SIZE/2;
+                        const cy = y + CELL_SIZE/2;
                         
+                        ctx.save();
+                        ctx.translate(cx, cy);
+                        ctx.scale(scale, scale);
+                        ctx.translate(-cx, -cy);
+
+                        // Body
+                        ctx.fillStyle = realizedCells.has(`${c},${r}`) ? `rgba(255,255,255,${alpha})` : "#1a1a1a";
+                        ctx.fillRect(x, y, CELL_SIZE + 1, CELL_SIZE + 1);
+
+                        // Static Symbol (No Pulse)
+                        let symbol = "";
                         if (val === 2) symbol = "→";
                         if (val === 3) symbol = "↓";
                         if (val === 4) symbol = "←";
@@ -500,34 +547,46 @@
                             ctx.textBaseline = "middle";
                             ctx.fillStyle = "#d63384";
                             ctx.font = "bold 30px Arial";
-                            ctx.fillText(symbol, x + CELL_SIZE/2, y + CELL_SIZE/2);
+                            ctx.fillText(symbol, cx, cy);
                         }
+                        
+                        ctx.restore();
                     }
                 }
             }
 
-            // 2. Draw Walls (Red Lines)
-            ctx.strokeStyle = "#c0392b"; // Brick Red
+            // 2. Draw Walls (Animated with Rooms)
+            ctx.strokeStyle = "#c0392b"; 
             ctx.lineWidth = 4;
             ctx.lineCap = "round";
-            ctx.beginPath();
-
+            
             for(let c = startCol; c <= endCol; c++) {
                 for(let r = startRow; r <= endRow; r++) {
-                    if (!getCell(c, r)) continue;
+                    const val = getCell(c, r);
+                    if (!val) continue;
 
                     const myRoom = getRoomId(c, r);
                     const x = c * CELL_SIZE;
                     const y = r * CELL_SIZE;
 
-                    // Right Neighbor
+                    // Apply the SAME scale transformation as the floor
+                    const { scale } = getCellScale(c, r, timestamp);
+                    const cx = x + CELL_SIZE/2;
+                    const cy = y + CELL_SIZE/2;
+
+                    ctx.save();
+                    ctx.translate(cx, cy);
+                    ctx.scale(scale, scale);
+                    ctx.translate(-cx, -cy);
+                    
+                    ctx.beginPath(); // Start a new path for this cell's walls
+
+                    // Right Neighbor Wall
                     const rightRoom = getRoomId(c+1, r);
                     if (myRoom !== undefined) {
                         if (rightRoom !== myRoom) {
-                            const myVal = getCell(c,r);
                             const rightVal = getCell(c+1, r);
-                            const hasDoor = (myVal === 2) || (rightVal === 4);
-                            
+                            const hasDoor = (val === 2) || (rightVal === 4);
                             if (!hasDoor) {
                                 ctx.moveTo(x + CELL_SIZE, y);
                                 ctx.lineTo(x + CELL_SIZE, y + CELL_SIZE);
@@ -535,14 +594,12 @@
                         }
                     }
 
-                    // Bottom Neighbor
+                    // Bottom Neighbor Wall
                     const downRoom = getRoomId(c, r+1);
                     if (myRoom !== undefined) {
                         if (downRoom !== myRoom) {
-                            const myVal = getCell(c,r);
                             const downVal = getCell(c, r+1);
-                            const hasDoor = (myVal === 3) || (downVal === 5);
-
+                            const hasDoor = (val === 3) || (downVal === 5);
                             if (!hasDoor) {
                                 ctx.moveTo(x, y + CELL_SIZE);
                                 ctx.lineTo(x + CELL_SIZE, y + CELL_SIZE);
@@ -550,39 +607,60 @@
                         }
                     }
                     
-                    // Left Edge (Void)
+                    // Left Edge Wall (Void)
                     if (!grid.has(`${c-1},${r}`) && myRoom !== undefined) {
-                         if (getCell(c,r) !== 4) {
+                         if (val !== 4) {
                              ctx.moveTo(x, y);
                              ctx.lineTo(x, y + CELL_SIZE);
                          }
                     }
-                     // Top Edge (Void)
+                     // Top Edge Wall (Void)
                      if (!grid.has(`${c},${r-1}`) && myRoom !== undefined) {
-                         if (getCell(c,r) !== 5) {
+                         if (val !== 5) {
                              ctx.moveTo(x, y);
                              ctx.lineTo(x + CELL_SIZE, y);
                          }
                     }
+                    
+                    ctx.stroke();
+                    ctx.restore();
                 }
             }
-            ctx.stroke();
 
-            // 3. Draw Player
+            // 3. Draw Particles
+            for(let p of particles) {
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life;
+                ctx.fillRect(p.x, p.y, p.size, p.size);
+            }
+            ctx.globalAlpha = 1.0;
+
+            // 4. Draw Player
             ctx.fillStyle = "#e74c3c";
+            const pScale = 1 + Math.sin(timestamp * 0.01) * 0.05;
+            const pSize = (CELL_SIZE - 30) * pScale;
+            const pOffset = (CELL_SIZE - pSize) / 2;
+            
             ctx.fillRect(
-                player.x * CELL_SIZE + 15, 
-                player.y * CELL_SIZE + 15, 
-                CELL_SIZE - 30, 
-                CELL_SIZE - 30
+                visualPlayer.x + pOffset, 
+                visualPlayer.y + pOffset, 
+                pSize, 
+                pSize
             );
+            
+            // Player inner glow
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = "#e74c3c";
+            ctx.fillRect(
+                visualPlayer.x + pOffset + 5, 
+                visualPlayer.y + pOffset + 5, 
+                pSize - 10, 
+                pSize - 10
+            );
+            ctx.shadowBlur = 0;
 
             ctx.restore();
         }
-
-        // Init
-        resetGame();
-
     </script>
 </body>
 </html>
